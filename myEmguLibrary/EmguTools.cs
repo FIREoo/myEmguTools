@@ -46,15 +46,15 @@ namespace myEmguLibrary
 			unsafe
 			{
 				if (mat.NumberOfChannels == 1)
-					switch (typeof(T).ToString())
+					switch (Type.GetTypeCode(typeof(T)))
 					{
-						case "byte":
+						case TypeCode.Byte:
 							byte* pixelPtr_byte = (byte*)mat.DataPointer;
 							return (T)Convert.ChangeType(pixelPtr_byte[row * mat.Cols + col], typeof(T));
-						case "int":
+						case TypeCode.Int16:
 							int* pixelPtr_int = (int*)mat.DataPointer;
 							return (T)Convert.ChangeType(pixelPtr_int[row * mat.Cols + col], typeof(T));
-						case "double":
+						case TypeCode.Double:
 							double* pixelPtr_double = (double*)mat.DataPointer;
 							return (T)Convert.ChangeType(pixelPtr_double[row * mat.Cols + col], typeof(T));
 						default:
