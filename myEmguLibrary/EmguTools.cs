@@ -13,6 +13,9 @@ using Emgu.CV.CvEnum;
 using System.Runtime.InteropServices;
 using System.Diagnostics;//trace
 using System.Collections.Generic;
+using System.Windows.Media.Imaging;
+using System.Windows;
+using Point = System.Drawing.Point;
 
 namespace myEmguLibrary
 {
@@ -32,16 +35,41 @@ namespace myEmguLibrary
 				Marshal.Copy(value, 0, mat[i].DataPointer, mat[i].Rows * mat[i].Cols * mat[i].ElementSize);
 			}
 		}
-		public static Mat cutImage(this Mat img, Rectangle rect)
+#if UNSAFE
+        public static Mat cutImage(this Mat src, Rectangle rect)
+        {
+            if (src.Depth != DepthType.Cv8U)
+                throw new Exception("DepthType.Cv8U only!");
+
+            int ch = src.NumberOfChannels;
+
+            Mat rtn = new Mat(rect.Height, rect.Width, DepthType.Cv8U, ch);
+            unsafe
+            {
+                byte* intPtr_src = (byte*)src.DataPointer;
+                byte* intPtr_rtn = (byte*)rtn.DataPointer;
+
+                for (int y = 0; y < rect.Height; y++)
+                    for (int x = 0; x < rect.Width; x++)
+                        for (int c = 0; c < ch; c++)
+                        {
+                            intPtr_rtn[(y * rect.Width * ch) + (x * ch) + c] = intPtr_src[((y + rect.Y) * src.Width * ch) + ((x + rect.X) * ch) + c];
+                        }
+            }
+            return rtn;
+        }
+#else
+            public static Mat cutImage(this Mat img, Rectangle rect)
 		{
 			Image<Bgr, Byte> buffer_im = img.ToImage<Bgr, Byte>();
 			buffer_im.ROI = rect;
 			Image<Bgr, Byte> cropped_im = buffer_im.Copy();
 			return cropped_im.Mat;
 		}
-		//-----get value-----//
+#endif
+        //-----get value-----//
 #if UNSAFE
-		public static T GetValue<T>(Mat mat, int row, int col)
+        public static T GetValue<T>(Mat mat, int row, int col)
 		{
 			unsafe
 			{
@@ -60,7 +88,16 @@ namespace myEmguLibrary
 						default:
 							throw new System.ArgumentException("type error", "byte int double");
 					}
-				else
+				else if(mat.NumberOfChannels == 3)
+                {//<T>不知道怎麼用
+                    MCvScalar _return = new MCvScalar();
+                    byte* pixelPtr = (byte*)mat.DataPointer;
+                    _return.V0 = pixelPtr[(row * mat.Cols * 3) + (col * 3) + 0];
+                    _return.V1 = pixelPtr[(row * mat.Cols * 3) + (col * 3) + 1];
+                    _return.V2 = pixelPtr[(row * mat.Cols * 3) + (col * 3) + 2];
+                    return (T)Convert.ChangeType(_return, typeof(T)); 
+                }
+                else
 					throw new System.ArgumentException("NumberOfChannels", "!=1");
 			}
 
@@ -81,7 +118,6 @@ namespace myEmguLibrary
 				else
 					throw new System.ArgumentException("NumberOfChannels", "!=3");
 			}
-			return new MCvScalar();
 		}
 		public static byte GetValue(Mat mat, int row, int col)
 		{
@@ -165,18 +201,6 @@ namespace myEmguLibrary
             if (mat.NumberOfChannels == 1)
             {
                 byte[] value = new byte[1];
-                Marshal.Copy(mat.DataPointer + (row * mat.Cols + col) * mat.ElementSize, value, 0, 1);
-                int V = (int)value[0];
-                return V;
-            }
-            else
-                return -1;
-        }
-        public static int GetValue_double(Mat mat, int row, int col)
-        {
-            if (mat.NumberOfChannels == 1)
-            {
-                double[] value = new double[1];
                 Marshal.Copy(mat.DataPointer + (row * mat.Cols + col) * mat.ElementSize, value, 0, 1);
                 int V = (int)value[0];
                 return V;
@@ -326,13 +350,35 @@ namespace myEmguLibrary
 
 			H /= 2;
 			S *= 255;
-			V *= 255;
 
 			return new MCvScalar(H, S, V);
 		}
+        //image convert //WPF
+        public static BitmapSource MatToBitmap(IInputArray mat)
+        {
+            WriteableBitmap bitmap = null;
+            if (((Mat)mat).NumberOfChannels == 4)
+                bitmap = new WriteableBitmap(((Mat)mat).Width, ((Mat)mat).Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgra32, null);
+            else if (((Mat)mat).NumberOfChannels == 3)
+                bitmap = new WriteableBitmap(((Mat)mat).Width, ((Mat)mat).Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgr24, null);
 
-		/// <summary>HSV to BGR</summary>
-		public static MCvScalar ToBGR(this MCvScalar input)
+            bitmap.Lock();
+            unsafe
+            {
+                var region = new Int32Rect(0, 0, ((Mat)mat).Width, ((Mat)mat).Height);
+                int ch = ((Mat)mat).NumberOfChannels;
+                int stride = (1920 * ch);
+                int bitPerPixCh = 8;
+                bitmap.WritePixels(region, ((Mat)mat).DataPointer, (stride * 1080), stride);
+                bitmap.AddDirtyRect(region);
+            }
+            bitmap.Unlock();
+
+            return bitmap;
+        }
+
+        /// <summary>HSV to BGR</summary>
+        public static MCvScalar ToBGR(this MCvScalar input)
 		{
 			return hsv2bgr(input);
 		}
@@ -380,5 +426,23 @@ namespace myEmguLibrary
 					return new MCvScalar(0, 0, 0);
 			}
 		}
-	}
+        /*
+        public static class DefaultColor
+        {
+            public static SolidColorBrush DarkRed = new SolidColorBrush(Color.FromRgb(140, 68, 64));
+            public static SolidColorBrush Red = new SolidColorBrush(Color.FromRgb(174, 83, 80));
+            public static SolidColorBrush LightRed = new SolidColorBrush(Color.FromRgb(197, 129, 126));
+            public static SolidColorBrush DarkGreen = new SolidColorBrush(Color.FromRgb(79, 120, 67));
+            public static SolidColorBrush Green = new SolidColorBrush(Color.FromRgb(105, 159, 89));
+            public static SolidColorBrush LightGreen = new SolidColorBrush(Color.FromRgb(177, 206, 168));
+            public static SolidColorBrush DarkBlue = new SolidColorBrush(Color.FromRgb(59, 78, 169));
+            public static SolidColorBrush Blue = new SolidColorBrush(Color.FromRgb(91, 102, 189));
+            public static SolidColorBrush LightBlue = new SolidColorBrush(Color.FromRgb(153, 161, 211));
+            public static SolidColorBrush DarkYellow = new SolidColorBrush(Color.FromRgb(230, 159, 13));
+            public static SolidColorBrush Yellow = new SolidColorBrush(Color.FromRgb(243, 180, 48));
+            public static SolidColorBrush LightYellow = new SolidColorBrush(Color.FromRgb(248, 205, 116));
+
+        }
+        */
+    }
 }
