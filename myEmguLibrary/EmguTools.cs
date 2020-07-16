@@ -367,9 +367,9 @@ namespace myEmguLibrary
             {
                 var region = new Int32Rect(0, 0, ((Mat)mat).Width, ((Mat)mat).Height);
                 int ch = ((Mat)mat).NumberOfChannels;
-                int stride = (1920 * ch);
+                int stride = (((Mat)mat).Width * ch);
                 int bitPerPixCh = 8;
-                bitmap.WritePixels(region, ((Mat)mat).DataPointer, (stride * 1080), stride);
+                bitmap.WritePixels(region, ((Mat)mat).DataPointer, (stride * ((Mat)mat).Height), stride);
                 bitmap.AddDirtyRect(region);
             }
             bitmap.Unlock();
