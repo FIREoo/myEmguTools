@@ -361,6 +361,9 @@ namespace myEmguLibrary
                 bitmap = new WriteableBitmap(((Mat)mat).Width, ((Mat)mat).Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgra32, null);
             else if (((Mat)mat).NumberOfChannels == 3)
                 bitmap = new WriteableBitmap(((Mat)mat).Width, ((Mat)mat).Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Bgr24, null);
+            else if (((Mat)mat).NumberOfChannels == 1)
+                bitmap = new WriteableBitmap(((Mat)mat).Width, ((Mat)mat).Height, 96.0, 96.0, System.Windows.Media.PixelFormats.Gray8, null);
+   
 
             bitmap.Lock();
             unsafe
