@@ -35,6 +35,13 @@ namespace myEmguLibrary
                 Marshal.Copy(value, 0, mat[i].DataPointer, mat[i].Rows * mat[i].Cols * mat[i].ElementSize);
             }
         }
+        public static void AddLayer(this IInputOutputArray baseImg, Mat upLayer)
+        {
+            Mat mask = new Mat(upLayer.Height, upLayer.Width, DepthType.Cv8U, 1);
+            CvInvoke.CvtColor(upLayer, mask, ColorConversion.Bgr2Gray);
+            CvInvoke.Threshold(mask, mask, 0, 255, ThresholdType.Binary);
+            ((Mat)upLayer).CopyTo(baseImg, mask);
+        }
 #if UNSAFE
         public static Mat cutImage(this Mat src, Rectangle rect)
         {
@@ -269,11 +276,54 @@ namespace myEmguLibrary
             P.Y = (int)Y;
             return P;
         }
+        public static (Point,Point) offset(Point p1, Point p2, double destance)
+        {
+            double theta = Math.Atan2(Math.Abs(p1.Y - p2.Y) , Math.Abs(p1.X - p2.X));
+            Point p1p = new Point((int)(p1.X + Math.Sin(theta)* destance), (int)(p1.Y + Math.Cos(theta)* destance));
+            Point p2p = new Point((int)(p2.X + Math.Sin(theta)* destance), (int)(p2.Y + Math.Cos(theta)* destance));
+            return (p1p, p2p);
+        }
         //drawing
         public static void drawCross(ref Mat img, Point P, int size, MCvScalar Mcolor, int thickness = 1)
         {
             CvInvoke.Line(img, new Point(P.X - (size / 2), P.Y - (size / 2)), new Point(P.X + (size / 2), P.Y + (size / 2)), Mcolor, thickness);
             CvInvoke.Line(img, new Point(P.X - (size / 2), P.Y + (size / 2)), new Point(P.X + (size / 2), P.Y - (size / 2)), Mcolor, thickness);
+        }
+        public static void drawRect(Mat img, RotatedRect rect, MCvScalar color = default(MCvScalar), int thickness = 1, LineType lineType = LineType.EightConnected, int shift = 0)
+        {
+            var v = rect.GetVertices();
+
+            var prevPoint = v[0];
+            var firstPoint = prevPoint;
+            var nextPoint = prevPoint;
+            var lastPoint = nextPoint;
+
+
+            for (var i = 1; i < v.Length; i++)
+            {
+                nextPoint = v[i];
+                CvInvoke.Line(img, Point.Round(prevPoint), Point.Round(nextPoint), color, thickness, lineType, shift);
+                prevPoint = nextPoint;
+                lastPoint = prevPoint;
+            }
+            CvInvoke.Line(img, Point.Round(lastPoint), Point.Round(firstPoint), color, thickness, lineType, shift);
+            //return input;
+        }
+        public static Point offlineCurve(Point CenterPoint, double R, double nowAngle, double angle, double length)
+        {
+            R = (length * 360) / (2 * Math.PI * angle);
+
+            double rad = ex.deg2rad(nowAngle);
+            double x_now = Math.Sin(rad) * R;
+            double y_now = R * (1 - Math.Cos(rad));
+
+            rad = ex.deg2rad(angle);
+            double x_next = Math.Sin(rad) * R;
+            double y_next = R * (1 - Math.Cos(rad));
+
+            double dx = x_next - x_now;
+            double dy = y_next - y_now;
+            return new Point(CenterPoint.X + (int)dx, CenterPoint.Y + (int)dy);
         }
         //color space
         public static MCvScalar hsv2bgr(MCvScalar hsv)
@@ -459,4 +509,17 @@ namespace myEmguLibrary
         }
         */
     }
+
+    static public class ex
+    {
+        static public double deg2rad(double angle)
+        {
+            return (Math.PI / 180) * angle;
+        }
+        static public Point ToPoint(this PointF pf)
+        {
+            return new Point((int)pf.X, (int)pf.Y);
+        }
+    }
+
 }
