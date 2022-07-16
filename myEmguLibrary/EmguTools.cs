@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.Windows.Media.Imaging;
 using System.Windows;
 using Point = System.Drawing.Point;
+using Emgu.CV.Util;
 
 namespace myEmguLibrary
 {
@@ -276,11 +277,11 @@ namespace myEmguLibrary
             P.Y = (int)Y;
             return P;
         }
-        public static (Point,Point) offset(Point p1, Point p2, double destance)
+        public static (Point, Point) offset(Point p1, Point p2, double destance)
         {
-            double theta = Math.Atan2(Math.Abs(p1.Y - p2.Y) , Math.Abs(p1.X - p2.X));
-            Point p1p = new Point((int)(p1.X + Math.Sin(theta)* destance), (int)(p1.Y + Math.Cos(theta)* destance));
-            Point p2p = new Point((int)(p2.X + Math.Sin(theta)* destance), (int)(p2.Y + Math.Cos(theta)* destance));
+            double theta = Math.Atan2(Math.Abs(p1.Y - p2.Y), Math.Abs(p1.X - p2.X));
+            Point p1p = new Point((int)(p1.X + Math.Sin(theta) * destance), (int)(p1.Y + Math.Cos(theta) * destance));
+            Point p2p = new Point((int)(p2.X + Math.Sin(theta) * destance), (int)(p2.Y + Math.Cos(theta) * destance));
             return (p1p, p2p);
         }
         //drawing
@@ -291,23 +292,33 @@ namespace myEmguLibrary
         }
         public static void drawRect(Mat img, RotatedRect rect, MCvScalar color = default(MCvScalar), int thickness = 1, LineType lineType = LineType.EightConnected, int shift = 0)
         {
-            var v = rect.GetVertices();
+            //var v = rect.GetVertices();
 
-            var prevPoint = v[0];
-            var firstPoint = prevPoint;
-            var nextPoint = prevPoint;
-            var lastPoint = nextPoint;
+            //var prevPoint = v[0];
+            //var firstPoint = prevPoint;
+            //var nextPoint = prevPoint;
+            //var lastPoint = nextPoint;
 
 
-            for (var i = 1; i < v.Length; i++)
+            //for (var i = 1; i < v.Length; i++)
+            //{
+            //    nextPoint = v[i];
+            //    CvInvoke.Line(img, Point.Round(prevPoint), Point.Round(nextPoint), color, thickness, lineType, shift);
+            //    prevPoint = nextPoint;
+            //    lastPoint = prevPoint;
+            //}
+            //CvInvoke.Line(img, Point.Round(lastPoint), Point.Round(firstPoint), color, thickness, lineType, shift);
+
+            //---new---//
+            PointF[] pf = rect.GetVertices();
+            Point[] p = Array.ConvertAll(pf, new Converter<PointF, Point>(Point.Round));
+            if (thickness > 0)
+                CvInvoke.Polylines(img, p, true, color, thickness, lineType, shift);
+            else
             {
-                nextPoint = v[i];
-                CvInvoke.Line(img, Point.Round(prevPoint), Point.Round(nextPoint), color, thickness, lineType, shift);
-                prevPoint = nextPoint;
-                lastPoint = prevPoint;
+                VectorOfPoint vp = new VectorOfPoint(p);
+                CvInvoke.FillPoly(img, vp, color);
             }
-            CvInvoke.Line(img, Point.Round(lastPoint), Point.Round(firstPoint), color, thickness, lineType, shift);
-            //return input;
         }
         public static Point offlineCurve(Point CenterPoint, double R, double nowAngle, double angle, double length)
         {
